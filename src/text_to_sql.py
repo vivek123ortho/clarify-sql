@@ -2,22 +2,18 @@
 import os
 
 from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from sqlalchemy import text
-
-from schema_loader import load_schema, get_engine
+from llm_factory import get_llm
+from schema_loader import load_schema, load_value_hints, get_engine
 from models import SQLResult
 
 
 # Load environment variables
 load_dotenv()
 
-# Initialize Gemini
-llm = ChatGoogleGenerativeAI(
-    model=os.getenv("GEMINI_MODEL"),
-    temperature=0
-)
+# Initialize the LLM
+llm = get_llm()
 
 # Require structured output matching SQLResult
 structured_llm = llm.with_structured_output(SQLResult)
@@ -43,11 +39,8 @@ chain = prompt | structured_llm
 
 
 def generate_sql(question: str) -> SQLResult:
-    """Generate a SQL query from a natural-language question."""
-    return chain.invoke({
-        "schema": load_schema(),
-        "question": question
-    })
+    schema = load_schema() + "\n\n" + load_value_hints()
+    return chain.invoke({"schema": schema, "question": question})
 
 
 def run_sql(sql: str):
