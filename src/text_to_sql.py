@@ -1,25 +1,16 @@
-
-import os
-
 from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate
 from sqlalchemy import text
+
 from llm_factory import get_llm
 from schema_loader import load_schema, load_value_hints, get_engine
 from models import SQLResult
 
-
-# Load environment variables
 load_dotenv()
 
-# Initialize the LLM
 llm = get_llm()
-
-# Require structured output matching SQLResult
 structured_llm = llm.with_structured_output(SQLResult)
 
-
-# Create the prompt
 prompt = ChatPromptTemplate.from_messages([
     (
         "system",
@@ -30,23 +21,34 @@ prompt = ChatPromptTemplate.from_messages([
         "1. Return one SELECT query only.\n"
         "2. Never modify, insert, or delete data.\n"
         "3. Use only tables and columns provided in the schema.\n"
+        "4. If the user gave clarified choices, follow them exactly."
     ),
     ("human", "{question}"),
 ])
 
-# Connect the prompt to the LLM
 chain = prompt | structured_llm
 
 
 def generate_sql(question: str) -> SQLResult:
+    """Generate a SQL query from a natural-language question."""
     schema = load_schema() + "\n\n" + load_value_hints()
     return chain.invoke({"schema": schema, "question": question})
 
 
+def generate_sql_with_choices(question: str, hints: list[str]) -> SQLResult:
+    """Generate SQL after the user answered clarification questions."""
+    guidance = "\n".join(f"- {h}" for h in hints)
+    full_question = (
+        f"{question}\n\n"
+        f"The user clarified these choices. Follow them exactly:\n{guidance}"
+    )
+    return generate_sql(full_question)
+
+
 def run_sql(sql: str):
-    """Execute the generated SQL and return column names and rows."""
-    # Basic safety check: only allow SELECT queries.
-    if not sql.strip().lower().startswith("select"):
+    """Execute the SQL and return column names and rows (stopgap safety check)."""
+    first_word = sql.strip().lower().split()[0] if sql.strip() else ""
+    if first_word not in ("select", "with"):
         raise ValueError("Only SELECT queries are allowed.")
 
     with get_engine().connect() as conn:
@@ -55,31 +57,10 @@ def run_sql(sql: str):
 
 
 if __name__ == "__main__":
-    questions = [
-        "List all products in the Electronics category",
-        "What is the total revenue?",
-        "Who is the top customer?",
-    ]
-
-    for q in questions:
-        print("\n" + "=" * 60)
-        print("QUESTION:", q)
-
-        try:
-            result = generate_sql(q)
-
-            print("\nSQL:", result.sql)
-            print("Why:", result.explanation)
-
-            cols, rows = run_sql(result.sql)
-
-            print("\nCOLUMNS:", list(cols))
-
-            for row in rows:
-                print(row)
-
-            if not rows:
-                print("No rows returned.")
-
-        except Exception as e:
-            print("ERROR:", e)
+    q = "List all products in the Electronics category"
+    result = generate_sql(q)
+    print("SQL:", result.sql)
+    cols, rows = run_sql(result.sql)
+    print(list(cols))
+    for row in rows:
+        print(row)
