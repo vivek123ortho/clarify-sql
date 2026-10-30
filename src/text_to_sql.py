@@ -1,9 +1,15 @@
+
 from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate
 from sqlalchemy import text
+from sql_validator import validate_sql
 
 from llm_factory import get_llm
-from schema_loader import load_schema, load_value_hints, get_engine
+from schema_loader import (
+    load_schema,
+    load_value_hints,
+    get_readonly_engine
+)
 from models import SQLResult
 
 load_dotenv()
@@ -38,29 +44,34 @@ def generate_sql(question: str) -> SQLResult:
 def generate_sql_with_choices(question: str, hints: list[str]) -> SQLResult:
     """Generate SQL after the user answered clarification questions."""
     guidance = "\n".join(f"- {h}" for h in hints)
+
     full_question = (
         f"{question}\n\n"
         f"The user clarified these choices. Follow them exactly:\n{guidance}"
     )
+
     return generate_sql(full_question)
 
 
 def run_sql(sql: str):
-    """Execute the SQL and return column names and rows (stopgap safety check)."""
-    first_word = sql.strip().lower().split()[0] if sql.strip() else ""
-    if first_word not in ("select", "with"):
-        raise ValueError("Only SELECT queries are allowed.")
+    """Validate, then execute SQL using a read-only database connection."""
+    safe_sql = validate_sql(sql)
 
-    with get_engine().connect() as conn:
-        result = conn.execute(text(sql))
+    with get_readonly_engine().connect() as conn:
+        result = conn.execute(text(safe_sql))
         return result.keys(), result.fetchall()
 
 
 if __name__ == "__main__":
     q = "List all products in the Electronics category"
+
     result = generate_sql(q)
+
     print("SQL:", result.sql)
+
     cols, rows = run_sql(result.sql)
+
     print(list(cols))
+
     for row in rows:
         print(row)

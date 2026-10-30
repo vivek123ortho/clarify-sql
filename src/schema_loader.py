@@ -5,6 +5,8 @@ from sqlalchemy import create_engine, inspect, text
 
 load_dotenv()
 
+def get_readonly_engine():
+    return create_engine(os.getenv("READONLY_DATABASE_URL"))
 
 def get_engine():
     return create_engine(os.getenv("DATABASE_URL"))
