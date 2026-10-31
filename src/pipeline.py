@@ -23,13 +23,21 @@ def main():
         print("\nThis question is ambiguous:", check.reason)
         cset = generate_clarifications(q, check.ambiguous_terms, check.reason)
 
+        from memory import get_definition, save_definition
+
         hints = []
         for cq in cset.questions[:3]:
+            saved = get_definition(cq.term, cq.question)
+            if saved:
+                print(f"\n(Using your saved choice for '{cq.term}')")
+                hints.append(saved)
+                continue
             print("\n" + cq.question)
             for i, opt in enumerate(cq.options, 1):
                 print(f"  {i}. {opt.label}")
             pick = ask_choice(len(cq.options))
             hints.append(cq.options[pick].sql_hint)
+            save_definition(cq.term, cq.question, cq.options[pick].sql_hint)
 
         print("\nYour choices:")
         for h in hints:
