@@ -6,7 +6,12 @@ from sqlalchemy import create_engine, inspect, text
 load_dotenv()
 
 def get_readonly_engine():
-    return create_engine(os.getenv("READONLY_DATABASE_URL"))
+    return create_engine(
+        os.getenv("READONLY_DATABASE_URL"),
+        connect_args={
+            "options": "-c statement_timeout=5000 -c default_transaction_read_only=on"
+        },
+    )
 
 def get_engine():
     return create_engine(os.getenv("DATABASE_URL"))
