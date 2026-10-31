@@ -1,3 +1,4 @@
+import os
 import time
 
 from ambiguity import check_ambiguity
@@ -23,6 +24,9 @@ def run_case(case):
         cset = generate_clarifications(question, check.ambiguous_terms, check.reason)
         time.sleep(PAUSE)
         hints = pick_hints(intent, cset)
+        if os.getenv("DEBUG_EVAL"):
+            print("   options:", [[o.label for o in q.options] for q in cset.questions])
+            print("   picked hints:", hints)
         time.sleep(PAUSE)
         result = generate_sql_with_choices(question, hints)
         asked = len(cset.questions[:3])
@@ -32,24 +36,30 @@ def run_case(case):
 
 
 def main():
-    correct = flagged = total_asked = 0
+    correct = flagged = total_asked = errors = completed = 0
     for case in CASES:
         try:
             ok, asked, was_flagged = run_case(case)
         except Exception as e:
             print(f"[ERROR] {case['name']}: {e}")
+            errors += 1
             continue
+        completed += 1
         correct += ok
         flagged += was_flagged
         total_asked += asked
         print(f"[{'OK' if ok else 'WRONG'}] {case['name']} "
               f"(flagged: {was_flagged}, questions asked: {asked})")
 
-    n = len(CASES)
     print("\n" + "=" * 50)
-    print(f"Full pipeline correct:      {correct}/{n}")
-    print(f"Flagged as ambiguous:       {flagged}/{n}")
-    print(f"Avg questions per query:    {total_asked / n:.1f}")
+    print(f"Full pipeline correct:      {correct}/{completed}")
+    print(f"Provider errors:             {errors}")
+    print(f"Flagged as ambiguous:       {flagged}/{completed}")
+    print(
+        f"Avg questions per query:    "
+        f"{total_asked / completed:.1f}" if completed else
+        "Avg questions per query:    n/a"
+    )
 
 
 if __name__ == "__main__":

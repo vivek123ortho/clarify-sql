@@ -3,6 +3,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from llm_factory import get_llm
 from schema_loader import load_schema, load_value_hints
 from models import ClarificationSet
+from retry import invoke_with_retry
 
 llm = get_llm()
 structured_llm = llm.with_structured_output(ClarificationSet)
@@ -42,7 +43,7 @@ chain = prompt | structured_llm
 def generate_clarifications(question, terms, reason) -> ClarificationSet:
     """Turn an ambiguous question into multiple-choice clarification questions."""
     schema = load_schema() + "\n\n" + load_value_hints()
-    return chain.invoke({
+    return invoke_with_retry(chain, {
         "schema": schema,
         "question": question,
         "terms": ", ".join(terms),

@@ -2,6 +2,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from llm_factory import get_llm
 from models import OptionSelection
+from retry import invoke_with_retry
 
 llm = get_llm()
 structured_llm = llm.with_structured_output(OptionSelection)
@@ -31,7 +32,9 @@ def format_questions(cset) -> str:
 
 def pick_hints(intent: str, cset) -> list:
     """Return the sql_hint of the option the simulated user would choose."""
-    selection = chain.invoke({"intent": intent, "questions": format_questions(cset)})
+    selection = invoke_with_retry(
+        chain, {"intent": intent, "questions": format_questions(cset)}
+    )
     hints = []
     for i, cq in enumerate(cset.questions[:3]):
         n = selection.choices[i] if i < len(selection.choices) else 1

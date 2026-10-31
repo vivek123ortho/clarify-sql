@@ -5,6 +5,7 @@ from sqlalchemy import text
 from sql_validator import validate_sql
 
 from llm_factory import get_llm
+from retry import invoke_with_retry
 from schema_loader import (
     load_schema,
     load_value_hints,
@@ -38,7 +39,7 @@ chain = prompt | structured_llm
 def generate_sql(question: str) -> SQLResult:
     """Generate a SQL query from a natural-language question."""
     schema = load_schema() + "\n\n" + load_value_hints()
-    return chain.invoke({"schema": schema, "question": question})
+    return invoke_with_retry(chain, {"schema": schema, "question": question})
 
 
 def generate_sql_with_choices(question: str, hints: list[str]) -> SQLResult:

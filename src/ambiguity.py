@@ -6,6 +6,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from schema_loader import load_schema, load_value_hints
 from models import AmbiguityCheck
+from retry import invoke_with_retry
 
 load_dotenv()
 
@@ -38,7 +39,7 @@ chain = prompt | structured_llm
 def check_ambiguity(question: str) -> AmbiguityCheck:
     """Judge whether a question is ambiguous for this database schema."""
     schema = load_schema() + "\n\n" + load_value_hints()
-    return chain.invoke({"schema": schema, "question": question})
+    return invoke_with_retry(chain, {"schema": schema, "question": question})
 
 
 if __name__ == "__main__":
