@@ -39,3 +39,9 @@ class ClarificationSet(BaseModel):
     questions: List[ClarificationQuestion] = Field(
         description="At most 3 questions, one per ambiguous term"
     )
+
+class OptionSelection(BaseModel):
+    choices: List[int] = Field(
+        description="For each question, in order, the number (starting at 1) "
+                    "of the option that best matches the user's intent"
+    )
